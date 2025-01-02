@@ -18,7 +18,7 @@ jobs:
 
     - name: Deploy files via SFTP using password authentication
       run: |
-        sshpass -p "${{ secrets.SFTP_PASSWORD }}" sftp -oPort=22 ${SFTP_USERNAME}@${SFTP_HOST} << EOF
+        sshpass -p "${{ secrets.SFTP_PASSWORD }}" sftp -oPort=22 makendsc@ftp.makends.com << EOF
         put -r ./ ${REMOTE_PATH}  # Upload all files in the current directory to the remote path
         EOF
       env:
