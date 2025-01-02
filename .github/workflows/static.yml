@@ -1,0 +1,28 @@
+name: Deploy Test via SFTP
+
+on:
+  push:
+    branches:
+      - main  # Trigger the pipeline on push to the 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Runs the job on an Ubuntu runner
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2  # This checks out the code from the repository
+
+    - name: Set up SFTP
+      uses: appleboy/ftp-action@v1.1.0  # FTP/SFTP deployment action
+      with:
+        host: ${{ secrets.SFTP_HOST }}  # SFTP host (from secrets)
+        username: ${{ secrets.SFTP_USERNAME }}  # SFTP username (from secrets)
+        password: ${{ secrets.SFTP_PASSWORD }}  # SFTP password (from secrets)
+        port: ${{ secrets.SFTP_PORT }}  # SFTP port (default 21, from secrets)
+        local-dir: ./  # Directory containing your HTML files (root of the repo)
+        remote-dir: ${{ secrets.REMOTE_PATH }}  # Remote directory where the files should go
+        # Optional: ensure that the upload only happens for changed files
+        upload-only-changed: true
+        # Optional: passive mode setting for some SFTP servers
+        passive: true
