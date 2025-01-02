@@ -18,10 +18,17 @@ jobs:
 
     - name: Deploy files via SFTP using password authentication
       run: |
-        sshpass -p "1Hc1P21g.EikY:" sftp -oPort=22 makendsc@ftp.makends.com << EOF
+        # Disable Host Key verification to avoid the "Host key verification failed" error
+        mkdir -p ~/.ssh
+        echo "$SFTP_HOST" >> ~/.ssh/known_hosts
+        echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+        echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
+        
+        # Deploy files using sshpass for SFTP
+        sshpass -p "${{ secrets.SFTP_PASSWORD }}" sftp -oPort=22 ${SFTP_USERNAME}@${SFTP_HOST} << EOF
         put -r ./ ${REMOTE_PATH}  # Upload all files in the current directory to the remote path
         EOF
       env:
-        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}  # cPanel username (e.g., 'makendsc')
-        SFTP_HOST: ${{ secrets.SFTP_HOST }}  # cPanel SFTP host (e.g., 'ftp.makendsc.com')
-        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}  # Remote directory to deploy to (e.g., '/public_html/test-deploy')
+        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}  # cPanel username
+        SFTP_HOST: ${{ secrets.SFTP_HOST }}  # cPanel SFTP host
+        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}  # Remote directory to deploy to
