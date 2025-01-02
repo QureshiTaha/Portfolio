@@ -3,32 +3,25 @@ name: Deploy Static Website via SFTP
 on:
   push:
     branches:
-      - main  # Trigger deployment on push to the 'main' branch
+      - main  # Trigger the deployment when pushing to the 'main' branch
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # Runs the job on GitHub's Ubuntu runner
+    runs-on: ubuntu-latest  # GitHub's Ubuntu runner
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2  # Checkout the code from the repository
 
-    - name: Set up SSH for SFTP
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SFTP_PRIVATE_KEY" > ~/.ssh/id_rsa  # Use the private key from GitHub Secrets
-        chmod 600 ~/.ssh/id_rsa  # Set the correct permissions
-        echo "Host *" > ~/.ssh/config  # Disable strict host key checking
-        echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-        echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
+    - name: Install sshpass
+      run: sudo apt-get install -y sshpass  # Install sshpass for password authentication
 
-    - name: Deploy files via SFTP
+    - name: Deploy files via SFTP using password authentication
       run: |
-        sftp -oPort=${{ secrets.SFTP_PORT }} ${SFTP_USERNAME}@${SFTP_HOST} << EOF
+        sshpass -p "${{ secrets.SFTP_PASSWORD }}" sftp -oPort=22 ${SFTP_USERNAME}@${SFTP_HOST} << EOF
         put -r ./ ${REMOTE_PATH}  # Upload all files in the current directory to the remote path
         EOF
       env:
-        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}  # Your SFTP username
-        SFTP_HOST: ${{ secrets.SFTP_HOST }}  # Your SFTP host (e.g., ftp.makends.com)
-        SFTP_PORT: ${{ secrets.SFTP_PORT }}  # Your SFTP port (typically 21)
-        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}  # Remote directory to deploy the files (e.g., /home/makendsc/test-deploy)
+        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}  # cPanel username (e.g., 'makendsc')
+        SFTP_HOST: ${{ secrets.SFTP_HOST }}  # cPanel SFTP host (e.g., 'ftp.makendsc.com')
+        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}  # Remote directory to deploy to (e.g., '/public_html/test-deploy')
