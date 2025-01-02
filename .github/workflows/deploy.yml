@@ -1,9 +1,9 @@
-name: Deploy Website as Zip Archive
+name: Deploy Website using rsync (with password only)
 
 on:
   push:
     branches:
-      - main  # Trigger deployment on the 'main' branch
+      - main
 
 jobs:
   deploy:
@@ -13,20 +13,24 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    - name: Install zip and sshpass
-      run: sudo apt-get install -y zip sshpass
-
-    - name: Create zip archive
-      run: zip -r my-website.zip ./  # Zip up the entire website
-
-    - name: Deploy zip file via SCP
+    - name: Install rsync and sshpass
       run: |
-        sshpass -p "${{ secrets.SFTP_PASSWORD }}" scp -P 22 my-website.zip ${SFTP_USERNAME}@${SFTP_HOST}:${REMOTE_PATH}/
+        sudo apt-get install -y rsync sshpass
 
-    - name: Unzip on server
+    - name: Deploy files using rsync over SSH
       run: |
-        sshpass -p "${{ secrets.SFTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p 22 ${SFTP_USERNAME}@${SFTP_HOST} "unzip -o ${REMOTE_PATH}/my-website.zip -d ${REMOTE_PATH}/"
+        mkdir -p ~/.ssh
+        echo "$SFTP_PRIVATE_KEY" > ~/.ssh/id_rsa  # Store SSH key if you're using SSH keys for other connections
+        chmod 600 ~/.ssh/id_rsa  # Ensure correct permissions for the SSH key
+
+        # Disable host key verification to avoid the "Host key verification failed" error
+        echo "Host ${SFTP_HOST}" >> ~/.ssh/known_hosts
+        echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+        echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
+
+        # Run rsync using password authentication (disable SSH key authentication)
+        rsync -avz -e "ssh -o PubkeyAuthentication=no -p 22" ./ ${SFTP_USERNAME}@${SFTP_HOST}:${REMOTE_PATH}
       env:
-        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
-        SFTP_HOST: ${{ secrets.SFTP_HOST }}
-        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}  # cPanel username
+        SFTP_HOST: ${{ secrets.SFTP_HOST }}  # cPanel SFTP host
+        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}  # Remote directory to deploy to
