@@ -1,9 +1,9 @@
-name: Deploy Test via SFTP
+name: Deploy Static Website via SFTP
 
 on:
   push:
     branches:
-      - main  # Trigger the pipeline on push to the 'main' branch
+      - main  # Trigger the pipeline on push to 'main' branch
 
 jobs:
   deploy:
@@ -13,16 +13,21 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2  # This checks out the code from the repository
 
-    - name: Set up SFTP
-      uses: appleboy/ftp-action@v1.1.0  # FTP/SFTP deployment action
-      with:
-        host: ${{ secrets.SFTP_HOST }}  # SFTP host (from secrets)
-        username: ${{ secrets.SFTP_USERNAME }}  # SFTP username (from secrets)
-        password: ${{ secrets.SFTP_PASSWORD }}  # SFTP password (from secrets)
-        port: ${{ secrets.SFTP_PORT }}  # SFTP port (default 21, from secrets)
-        local-dir: ./  # Directory containing your HTML files (root of the repo)
-        remote-dir: ${{ secrets.REMOTE_PATH }}  # Remote directory where the files should go
-        # Optional: ensure that the upload only happens for changed files
-        upload-only-changed: true
-        # Optional: passive mode setting for some SFTP servers
-        passive: true
+    - name: Install SFTP client
+      run: sudo apt-get install -y openssh-client
+
+    - name: Upload via SFTP
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SFTP_PRIVATE_KEY" > ~/.ssh/id_rsa  # Use GitHub Secrets to store your private key
+        chmod 600 ~/.ssh/id_rsa
+        echo "Host *" > ~/.ssh/config
+        echo "  StrictHostKeyChecking no" >> ~/.ssh/config  # Disable host key checking for simplicity
+        sftp -oPort=${{ secrets.SFTP_PORT }} ${SFTP_USERNAME}@${{ secrets.SFTP_HOST }} << EOF
+        put -r ./ ${REMOTE_PATH}  # Upload everything in the current directory
+        EOF
+      env:
+        SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}  # Store your private key in GitHub Secrets
+        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+        SFTP_HOST: ${{ secrets.SFTP_HOST }}
+        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
