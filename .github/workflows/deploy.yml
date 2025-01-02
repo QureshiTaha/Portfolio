@@ -1,36 +1,32 @@
-name: Deploy Static Website using rsync
+name: Deploy Website as Zip Archive
 
 on:
   push:
     branches:
-      - main  # Trigger the deployment when pushing to the 'main' branch
+      - main  # Trigger deployment on the 'main' branch
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # GitHub's Ubuntu runner
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2  # Checkout the code from the repository
+      uses: actions/checkout@v2
 
-    - name: Install rsync and sshpass
+    - name: Install zip and sshpass
+      run: sudo apt-get install -y zip sshpass
+
+    - name: Create zip archive
+      run: zip -r my-website.zip ./  # Zip up the entire website
+
+    - name: Deploy zip file via SCP
       run: |
-        sudo apt-get install -y rsync sshpass  # Install rsync for fast file transfers
+        sshpass -p "${{ secrets.SFTP_PASSWORD }}" scp -P 22 my-website.zip ${SFTP_USERNAME}@${SFTP_HOST}:${REMOTE_PATH}/
 
-    - name: Deploy files using rsync over SSH
+    - name: Unzip on server
       run: |
-        mkdir -p ~/.ssh
-        echo "$SFTP_PRIVATE_KEY" > ~/.ssh/id_rsa  # Store the SSH key (if using keys)
-        chmod 600 ~/.ssh/id_rsa  # Ensure correct permissions for SSH key
-
-        # Disable host key verification
-        echo "Host ${SFTP_HOST}" >> ~/.ssh/known_hosts
-        echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-        echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
-
-        # Run rsync to deploy files efficiently
-        rsync -avz -e "ssh -p 22" ./ ${SFTP_USERNAME}@${SFTP_HOST}:${REMOTE_PATH}
+        sshpass -p "${{ secrets.SFTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p 22 ${SFTP_USERNAME}@${SFTP_HOST} "unzip -o ${REMOTE_PATH}/my-website.zip -d ${REMOTE_PATH}/"
       env:
-        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}  # cPanel username
-        SFTP_HOST: ${{ secrets.SFTP_HOST }}  # cPanel SFTP host
-        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}  # Remote directory to deploy to
+        SFTP_USERNAME: ${{ secrets.SFTP_USERNAME }}
+        SFTP_HOST: ${{ secrets.SFTP_HOST }}
+        REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
